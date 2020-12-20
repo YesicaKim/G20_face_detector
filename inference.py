@@ -15,13 +15,21 @@ from tf_dataloader import load_dataset, _jaccard
 from tf_build_ssd_model import SsdModel
 
 # hyperparameters
-args = argparse.ArgumentParser()
-args.add_argument('model_path', type=str, nargs='?', default='checkpoints/')
-args.add_argument('img_path', type=str, nargs='?', default=None)
-args.add_argument('camera', type=str, nargs='?', default=False)
+# args = argparse.ArgumentParser()
+# args.add_argument('model_path', type=str, nargs='?', default='checkpoints/')
+# args.add_argument('img_path', type=str, nargs='?', default='images/')
+# args.add_argument('camera', type=str, nargs='?', default=False)
 
-args_config = args.parse_args()
+# args_config = args.parse_args()
+# args_config = "images/image.png"
 
+global model
+cfg = config.cfg
+min_sizes = cfg['min_sizes']
+num_cell = [len(min_sizes[k]) for k in range(len(cfg['steps']))]
+model_path = os.getenv('HOME')+'/aiffel/face_detector/checkpoints'
+img_path = os.getenv('HOME')+'/aiffel/face_detector/image.png'
+camera = False
 
 def compute_nms(boxes, scores, nms_threshold=0.5, limit=200):
     """ Perform Non Maximum Suppression algorithm
@@ -174,13 +182,13 @@ def show_image(img, boxes, classes, scores, img_height, img_width, prior_index, 
     cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
     # confidence
 
-    if scores:
-        score = "{:.4f}".format(scores[prior_index])
-        class_name = class_list[classes[prior_index]]
+    # if scores:
+    score = "{:.4f}".format(scores[prior_index])
+    class_name = class_list[classes[prior_index]]
 
-        cv2.putText(img, '{} {}'.format(class_name, score),
-                    (int(boxes[prior_index][0] * img_width), int(boxes[prior_index][1] * img_height) - 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255))
+    cv2.putText(img, '{} {}'.format(class_name, score),
+                (int(boxes[prior_index][0] * img_width), int(boxes[prior_index][1] * img_height) - 4),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255))
 
 def main(_):
     global model
@@ -191,21 +199,22 @@ def main(_):
     try:
         model = SsdModel(cfg=cfg, num_cell=num_cell, training=False)
 
-        paths = [os.path.join(args_config.model_path, path)
-                 for path in os.listdir(args_config.model_path)]
+        paths = [os.path.join(model_path, path)
+            for path in os.listdir(model_path)]
+
         latest = sorted(paths, key=os.path.getmtime)[-1]
         model.load_weights(latest)
         print(f"model path : {latest}")
 
     except AttributeError as e:
-        print('Please make sure there is at least one weights at {}'.format(args_config.model_path))
+        print('Please make sure there is at least one weights at {}'.format(model_path))
 
-    if not args_config.camera:
-        if not os.path.exists(args_config.img_path):
-            print(f"Cannot find image path from {args_config.img_path}")
+    if not camera:
+        if not os.path.exists(img_path):
+            print(f"Cannot find image path from {img_path}")
             exit()
-        print("[*] Predict {} image.. ".format(args_config.img_path))
-        img_raw = cv2.imread(args_config.img_path)
+        print("[*] Predict {} image.. ".format(img_path))
+        img_raw = cv2.imread(img_path)
         img_raw = cv2.resize(img_raw, (320, 240))
         img_height_raw, img_width_raw, _ = img_raw.shape
         img = np.float32(img_raw.copy())
@@ -227,11 +236,21 @@ def main(_):
         boxes = recover_pad_output(boxes, pad_params)
 
         # draw and save results
-        save_img_path = os.path.join('assets/out_' + os.path.basename(args_config.img_path))
-
+        # save_img_path = os.path.join('assets/out_' + os.path.basename(args_config.img_path))
+        save_img_path = os.getenv('HOME')+'/aiffel/face_detector/assets/out_image.png'
+        print(save_img_path)
 
         for prior_index in range(len(boxes)):
-            show_image(img_raw, boxes, classes, scores, img_height_raw, img_width_raw, prior_index,cfg['labels_list'])
+            print(f"prior_index:{prior_index}")
+            score = "{:.4f}".format(scores[prior_index])
+            print(f"scores:{scores}")
+            class_name = cfg['labels_list']
+            print(f"class_name:{class_name}")
+            show_image(img_raw, boxes, classes, scores, img_height_raw, img_width_raw, prior_index, cfg['labels_list'])
+
+
+        # for prior_index in range(len(boxes)):
+        #     show_image(img_raw, boxes, classes, scores, img_height_raw, img_width_raw, prior_index,cfg['labels_list'])
 
         cv2.imwrite(save_img_path, img_raw)
         cv2.imshow('results', img_raw)
@@ -239,7 +258,7 @@ def main(_):
             exit(0)
 
     else:
-        capture = cv2.VideoCapture(args_config.img_path)
+        capture = cv2.VideoCapture(img_path)
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
 
