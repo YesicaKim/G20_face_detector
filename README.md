@@ -6,12 +6,12 @@
 
 - tfrecord 생성, augmentation, prior box 생성 등
 
-- 원본 이미지
+- 원본 이미지 (256, 384, 3)
 
 ![image](https://user-images.githubusercontent.com/39249809/102706043-bd82dc00-42d1-11eb-9389-a0c3ba50a86c.png)
 
 
-## 2. SSD 모델의 안정적 학습
+## 2. SSD 모델의 안정적 학습: 200 epochs
 
 - multiface detection 결과 이미지
 
